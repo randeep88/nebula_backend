@@ -10,22 +10,6 @@ const transporter = nodemailer.createTransport({
     user: "randeeprajpal9@gmail.com",
     pass: "wbnb wqha zoca cuwa",
   },
-  pool: true, // Use connection pool
-  maxConnections: 5,
-  maxMessages: 10,
-  rateDelta: 1000,
-  rateLimit: 5,
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 5000,
-  socketTimeout: 15000,
-});
-
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Email transporter error:", error);
-  } else {
-    console.log("✅ Email server is ready");
-  }
 });
 
 const register = async (req, res) => {
