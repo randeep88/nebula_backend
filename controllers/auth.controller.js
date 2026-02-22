@@ -37,7 +37,7 @@ const register = async (req, res) => {
     });
 
     const payload = { userId: newUser._id };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    const token = jwt.sign(payload, "mysecret", {
       expiresIn: "365d",
     });
 
@@ -59,6 +59,7 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
@@ -74,13 +75,13 @@ const login = async (req, res) => {
       profilePic: user.profilePic,
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    const token = jwt.sign(payload, "mysecret", {
       expiresIn: "365d",
     });
 
     res.json({ token, user });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    res.status(500).json({ msg: "Error logging in", error: err.message });
   }
 };
 
@@ -161,7 +162,7 @@ const sendOTP = async (req, res) => {
       { upsert: true },
     );
 
-    await transporter.sendMail({
+    const mail = await transporter.sendMail({
       from: `Nebula <randeeprajpal9@gmail.com>`,
       to: email,
       subject: "Email Verification OTP for Nebula",
@@ -236,7 +237,7 @@ const verifyOtp = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({
-      msg: "Server error",
+      msg: "Error verifying OTP",
       error: err.message,
       success: false,
     });
