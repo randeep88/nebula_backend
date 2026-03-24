@@ -10,9 +10,21 @@ const {
   removeAlbum,
   removePlaylist,
   getLibrary,
+  addSong,
+  removeSong,
+  getSong,
+  updateLastPlayedSong,
+  getLastPlayedSong,
 } = require("../controllers/library.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const router = express.Router();
+
+router.patch("/lastplayed/update", authMiddleware, updateLastPlayedSong);
+router.get("/lastplayed", authMiddleware, getLastPlayedSong);
+
+router.post("/song/add", authMiddleware, addSong);
+router.delete("/song/remove", authMiddleware, removeSong);
+router.get("/song", authMiddleware, getSong);
 
 router.post("/artist/add", authMiddleware, addArtist);
 router.delete("/artist/remove", authMiddleware, removeArtist);

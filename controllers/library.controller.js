@@ -1,6 +1,98 @@
 const Artist = require("../models/artist.model.js");
 const Album = require("../models/album.model.js");
+const Song = require("../models/song.model.js");
+const LastPlayed = require("../models/lastplayed.model.js");
 const Playlist = require("../models/playlist.model.js");
+const { ObjectId } = require("mongodb");
+
+const fixedId = new ObjectId("64f1a2b3c4d5e6f7890abcde");
+
+//Song
+const updateLastPlayedSong = async (req, res) => {
+  try {
+    const { songId } = req.body;
+    const userId = req.user.userId;
+
+    const song = await LastPlayed.replaceOne(
+      { _id: fixedId, user: userId },
+      { songId, user: userId },
+      { upsert: true },
+    );
+    res.status(200).json(song);
+  } catch (error) {
+    console.error("Error updating last played song:", error);
+    return res.status(500).json({
+      message: "Failed to update last played song",
+      error: error.message,
+    });
+  }
+};
+
+const getLastPlayedSong = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const song = await LastPlayed.findOne({ _id: fixedId, user: userId });
+    res.status(200).json(song);
+  } catch (error) {
+    console.error("Error getting last played song:", error);
+    return res.status(500).json({
+      message: "Failed to get last played song",
+      error: error.message,
+    });
+  }
+};
+
+//Song
+const addSong = async (req, res) => {
+  try {
+    const { songId } = req.body;
+    const userId = req.user.userId;
+
+    const existingSong = await Song.findOne({ songId, user: userId });
+    if (existingSong) {
+      return res
+        .status(200)
+        .json({ message: "Song already exists in library" });
+    }
+
+    const song = await Song.create({ songId, user: userId });
+    res.status(200).json(song);
+  } catch (error) {
+    console.error("Error adding song:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to add song", error: error.message });
+  }
+};
+
+const removeSong = async (req, res) => {
+  try {
+    const { songId } = req.body;
+    const userId = req.user.userId;
+
+    const song = await Song.deleteOne({ songId, user: userId });
+    res.status(200).json(song);
+  } catch (error) {
+    console.error("Error removing song:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to remove song", error: error.message });
+  }
+};
+
+const getSong = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const song = await Song.find({ user: userId });
+    res.status(200).json(song);
+  } catch (error) {
+    console.error("Error getting song:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to get song", error: error.message });
+  }
+};
 
 //Artist
 const addArtist = async (req, res) => {
@@ -154,6 +246,9 @@ const getLibrary = async (req, res) => {
 };
 
 module.exports = {
+  addSong,
+  removeSong,
+  getSong,
   addArtist,
   removeArtist,
   getArtist,
@@ -164,4 +259,6 @@ module.exports = {
   removePlaylist,
   getPlaylist,
   getLibrary,
+  updateLastPlayedSong,
+  getLastPlayedSong,
 };

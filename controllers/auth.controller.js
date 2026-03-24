@@ -1,26 +1,18 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const User = require("../models/user.model.js");
-const EmailVerification = require("../models/emailVerification.model.js");
-const nodemailer = require("nodemailer");
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: "randeeprajpal9@gmail.com",
-    pass: "wbnb wqha zoca cuwa",
-  },
-});
+const bcrypt = require("bcrypt");
 
 const register = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, email, password } = req.body;
 
-    if (!username || !email) {
-      return res.status(400).json({ msg: "Username and email are required" });
+    console.log(username, email, password);
+
+    if (!username || !email || !password) {
+      return res
+        .status(400)
+        .json({ msg: "Username, email and password are required" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -28,15 +20,13 @@ const register = async (req, res) => {
       return res.status(400).json({ msg: "User already exists, try login" });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ msg: "Profile picture is required" });
-    }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
       username,
       email,
-      profilePic: req.file.path,
-      isVerified: false,
+      profilePic: req.file ? req.file.path : null,
+      password: hashedPassword,
     });
 
     const payload = { userId: newUser._id };
@@ -44,7 +34,9 @@ const register = async (req, res) => {
       expiresIn: "365d",
     });
 
-    res.status(201).json({ token, user: newUser });
+    res
+      .status(201)
+      .json({ token, user: newUser, msg: "User registered successfully" });
   } catch (err) {
     res.status(500).json({
       msg: "Getting error in user registration",
@@ -55,20 +47,25 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { username, password } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ msg: "Email is required" });
+    const trimmedUsername = username.trim();
+
+    if (!username || !password) {
+      return res
+        .status(400)
+        .json({ msg: "Username and password are required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username: trimmedUsername });
 
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    if (!user.isVerified) {
-      return res.status(400).json({ msg: "User not verified" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: "Invalid password" });
     }
 
     const payload = {
@@ -106,26 +103,20 @@ const me = async (req, res) => {
 const userUpdate = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { username, email } = req.body;
+    const { username, profilePic } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ msg: "Email already in use" });
-      }
-      user.isVerified = false;
-    }
-
     user.username = username || user.username;
-    user.email = email || user.email;
+    // user.email = email || user.email;
 
     if (req.file) {
-      user.profilePic = req.file.path;
+      user.profilePic = req.file.path; // for web
+    } else if (profilePic) {
+      user.profilePic = profilePic; // for mobile
     }
 
     await user.save();
@@ -135,123 +126,123 @@ const userUpdate = async (req, res) => {
   }
 };
 
-const sendOTP = async (req, res) => {
-  try {
-    const { email, purpose } = req.body;
+// const sendOTP = async (req, res) => {
+//   try {
+//     const { email, purpose } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
-        message: "Email is required",
-        success: false,
-      });
-    }
+//     if (!email) {
+//       return res.status(400).json({
+//         message: "Email is required",
+//         success: false,
+//       });
+//     }
 
-    if (purpose === "login") {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({
-          message: "User does not exist, try to register first",
-          success: false,
-        });
-      }
-    }
+//     if (purpose === "login") {
+//       const user = await User.findOne({ email });
+//       if (!user) {
+//         return res.status(404).json({
+//           message: "User does not exist, try to register first",
+//           success: false,
+//         });
+//       }
+//     }
 
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+//     const otp = Math.floor(1000 + Math.random() * 9000).toString();
+//     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await EmailVerification.findOneAndUpdate(
-      { email },
-      { otp, expiresAt },
-      { upsert: true },
-    );
+//     await EmailVerification.findOneAndUpdate(
+//       { email },
+//       { otp, expiresAt },
+//       { upsert: true },
+//     );
 
-    const mail = await transporter.sendMail({
-      from: `Nebula <randeeprajpal9@gmail.com>`,
-      to: email,
-      subject: "Email Verification OTP for Nebula",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Email Verification</h2>
-          <p>Your OTP for Nebula verification is:</p>
-          <h1 style="color: #00CDAC; font-size: 32px; letter-spacing: 5px;">${otp}</h1>
-          <p>This OTP will expire in 5 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-      `,
-      text: `Your OTP is ${otp}. This OTP will expire in 5 minutes.`,
-    });
+//     await transporter.sendMail({
+//       from: `Nebula <randeeprajpal9@gmail.com>`,
+//       to: email,
+//       subject: "Email Verification OTP for Nebula",
+//       html: `
+//         <div style="font-family: Arial, sans-serif; padding: 20px;">
+//           <h2>Email Verification</h2>
+//           <p>Your OTP for Nebula verification is:</p>
+//           <h1 style="color: #00CDAC; font-size: 32px; letter-spacing: 5px;">${otp}</h1>
+//           <p>This OTP will expire in 5 minutes.</p>
+//           <p>If you didn't request this, please ignore this email.</p>
+//         </div>
+//       `,
+//       text: `Your OTP is ${otp}. This OTP will expire in 5 minutes.`,
+//     });
 
-    res.json({ message: `OTP sent to ${email}`, success: true });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error sending OTP",
-      error: error.message,
-      success: false,
-    });
-  }
-};
+//     res.json({ message: `OTP sent to ${email}`, success: true });
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Error sending OTP",
+//       error: error.message,
+//       success: false,
+//     });
+//   }
+// };
 
-const verifyOtp = async (req, res) => {
-  try {
-    const { otp, email } = req.body;
+// const verifyOtp = async (req, res) => {
+//   try {
+//     const { otp, email } = req.body;
 
-    if (!otp || !email) {
-      return res.status(400).json({
-        msg: "OTP and email are required",
-        success: false,
-      });
-    }
+//     if (!otp || !email) {
+//       return res.status(400).json({
+//         msg: "OTP and email are required",
+//         success: false,
+//       });
+//     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        msg: "User does not exist, try to register",
-        success: false,
-      });
-    }
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(404).json({
+//         msg: "User does not exist, try to register",
+//         success: false,
+//       });
+//     }
 
-    const verifiedOTP = await EmailVerification.findOne({ otp, email });
-    if (!verifiedOTP) {
-      return res.status(400).json({
-        msg: "Invalid OTP",
-        success: false,
-      });
-    }
+//     const verifiedOTP = await EmailVerification.findOne({ otp, email });
+//     if (!verifiedOTP) {
+//       return res.status(400).json({
+//         msg: "Invalid OTP",
+//         success: false,
+//       });
+//     }
 
-    if (verifiedOTP.expiresAt < Date.now()) {
-      await EmailVerification.deleteOne({ email });
-      return res.status(400).json({
-        msg: "OTP expired",
-        success: false,
-      });
-    }
+//     if (verifiedOTP.expiresAt < Date.now()) {
+//       await EmailVerification.deleteOne({ email });
+//       return res.status(400).json({
+//         msg: "OTP expired",
+//         success: false,
+//       });
+//     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { email },
-      { isVerified: true },
-      { new: true },
-    );
+//     const updatedUser = await User.findOneAndUpdate(
+//       { email },
+//       { isVerified: true },
+//       { new: true },
+//     );
 
-    await EmailVerification.deleteOne({ email });
+//     await EmailVerification.deleteOne({ email });
 
-    res.json({
-      success: true,
-      user: updatedUser,
-    });
-  } catch (err) {
-    res.status(500).json({
-      msg: "Error verifying OTP",
-      error: err.message,
-      success: false,
-    });
-  }
-};
+//     res.json({
+//       success: true,
+//       user: updatedUser,
+//     });
+//   } catch (err) {
+//     res.status(500).json({
+//       msg: "Error verifying OTP",
+//       error: err.message,
+//       success: false,
+//     });
+//   }
+// };
 
 module.exports = {
   login,
   register,
   me,
   userUpdate,
-  sendOTP,
-  verifyOtp,
+  // sendOTP,
+  // verifyOtp,
 };
