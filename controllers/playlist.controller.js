@@ -1,4 +1,4 @@
-const MyPlaylist = require("../models/MyPlaylist.model.js");
+const MyPlaylist = require("../models/myplaylist.model");
 
 const getPlaylistById = async (req, res) => {
   const userId = req.user.userId;
