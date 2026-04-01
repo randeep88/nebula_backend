@@ -38,6 +38,16 @@ const createPlaylist = async (req, res) => {
   res.status(201).json({ message: "Playlist created", data: newPlaylist });
 };
 
+const deletePlaylist = async (req, res) => {
+  const { playlistId } = req.body;
+
+  if (!playlistId) return res.json("Playlist id is required");
+
+  await MyPlaylist.findByIdAndDelete(playlistId);
+
+  res.status(201).json({ message: "Playlist Deleted" });
+};
+
 const addSong = async (req, res) => {
   const { songId, playlistIds } = req.body;
   const userId = req.user.userId;
@@ -94,5 +104,6 @@ module.exports = {
   removeSong,
   myPlaylists,
   createPlaylist,
-  getPlaylistById
+  getPlaylistById,
+  deletePlaylist,
 };
