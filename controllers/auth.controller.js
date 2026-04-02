@@ -5,9 +5,7 @@ const bcrypt = require("bcrypt");
 
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-
-    console.log(username, email, password);
+    const { username, email, password, profilePic } = req.body;
 
     if (!username || !email || !password) {
       return res
@@ -25,9 +23,11 @@ const register = async (req, res) => {
     const newUser = await User.create({
       username,
       email,
-      profilePic: req.file ? req.file.path : null,
+      profilePic: req.file ? req.file.path : profilePic,
       password: hashedPassword,
     });
+
+    console.log("newUser:", newUser);
 
     const payload = { userId: newUser._id };
     const token = jwt.sign(payload, "mysecret", {
