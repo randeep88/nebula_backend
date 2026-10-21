@@ -10,6 +10,7 @@ const sharp = require("sharp");
 
 const allowedOrigins = [
   "https://nebula-frontend-one.vercel.app",
+  "https://nebula-music.netlify.app",
   "http://localhost:5173",
   "http://localhost:8081",
   "http://192.168.1.36:8081",
@@ -23,9 +24,8 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      // Dev mode mein Expo/mobile allow kar
       if (process.env.NODE_ENV !== "production") {
-        return callback(null, true); // dev mein sab allow
+        return callback(null, true);
       }
 
       if (allowedOrigins.includes(origin)) {
@@ -73,10 +73,9 @@ app.get("/dominant-color", async (req, res) => {
       const brightness = (r + g + b) / 3;
       const saturation = max === 0 ? 0 : (max - min) / max;
 
-      // light, pale, washed out colors filter karo
-      if (brightness > 180) continue;   // too light (white, cream, light blue)
-      if (brightness < 25) continue;    // too dark (pure black)
-      if (saturation < 0.25) continue;  // too gray/dull (no color)
+      if (brightness > 180) continue;
+      if (brightness < 25) continue;
+      if (saturation < 0.25) continue;
 
       pixels.push({ r, g, b, saturation, brightness });
     }
@@ -85,14 +84,12 @@ app.get("/dominant-color", async (req, res) => {
       return res.json({ color: "#444444" });
     }
 
-    // saturation aur medium brightness dono ko weight do
     pixels.sort((a, b) => {
       const scoreA = a.saturation * 0.7 + (1 - a.brightness / 255) * 0.3;
       const scoreB = b.saturation * 0.7 + (1 - b.brightness / 255) * 0.3;
       return scoreB - scoreA;
     });
 
-    // top 10% pixels ka average lo — single pixel noise se bachne ke liye
     const topCount = Math.max(1, Math.floor(pixels.length * 0.1));
     const topPixels = pixels.slice(0, topCount);
 
