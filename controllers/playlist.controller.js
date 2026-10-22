@@ -1,4 +1,4 @@
-const MyPlaylist = require("../models/myplaylist.model");
+const MyPlaylist = require("../models/myplaylist.model.js");
 
 const getPlaylistById = async (req, res) => {
   const userId = req.user.userId;
@@ -99,11 +99,61 @@ const removeSong = async (req, res) => {
     .json({ message: "Song removed from playlist", data: updatedPlaylist });
 };
 
+const updatePlaylist = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const playlistId = req.params.id;
+    const { name, coverImage } = req.body;
+
+    const updates = {};
+
+    if (name !== undefined) {
+      const trimmed = String(name).trim();
+      if (!trimmed) {
+        return res
+          .status(400)
+          .json({ message: "Playlist name cannot be empty" });
+      }
+
+      const duplicate = await MyPlaylist.findOne({
+        userId,
+        name: trimmed,
+        _id: { $ne: playlistId },
+      });
+      if (duplicate) {
+        return res
+          .status(400)
+          .json({ message: "Playlist with this name already exists" });
+      }
+
+      updates.name = trimmed;
+    }
+
+    if (coverImage) updates.coverImage = coverImage;
+
+    const playlist = await MyPlaylist.findOneAndUpdate(
+      { _id: playlistId, userId },
+      { $set: updates },
+      { new: true },
+    );
+
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+
+    res.status(200).json({ message: "Playlist updated", data: playlist });
+  } catch (error) {
+    console.log("updatePlaylist error:", error);
+    res.status(500).json({ message: "Failed to update playlist" });
+  }
+};
+
 module.exports = {
   addSong,
   removeSong,
   myPlaylists,
   createPlaylist,
   getPlaylistById,
+  updatePlaylist,
   deletePlaylist,
 };

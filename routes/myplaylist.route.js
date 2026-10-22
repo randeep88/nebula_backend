@@ -6,12 +6,15 @@ const {
   createPlaylist,
   getPlaylistById,
   deletePlaylist,
+  updatePlaylist,
 } = require("../controllers/playlist.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const router = express.Router();
 
 router.get("/get/:id", authMiddleware, getPlaylistById);
 router.get("/get", authMiddleware, myPlaylists);
+
+router.patch("/:id", authMiddleware, updatePlaylist);
 
 router.post("/create", authMiddleware, createPlaylist);
 router.delete("/delete", authMiddleware, deletePlaylist);
